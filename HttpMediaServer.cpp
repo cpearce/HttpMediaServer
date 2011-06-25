@@ -131,7 +131,7 @@ public:
     return target;
   }
 
-  const map<string, string>& GetParams() {
+  const map<string, string>& GetParams() const {
     return params;
   }
 
@@ -176,6 +176,10 @@ public:
 
   bool IsRangeRequest() const {
     return hasRange;
+  }
+
+  bool IsLive() const {
+    return ContainsKey(GetParams(), "live");
   }
 
   const int id;
@@ -350,7 +354,7 @@ public:
       } else if ((buf.st_mode & _S_IFDIR) == _S_IFDIR) {
         mode = DIR_LIST;
         path = parser.GetTarget();
-      } else if (parser.IsRangeRequest()) {
+      } else if (parser.IsRangeRequest() && !parser.IsLive()) {
         mode = GET_FILE_RANGE;
         path = parser.GetTarget();
         parser.GetRange(rangeStart, rangeEnd);
@@ -370,40 +374,37 @@ public:
     string headers;
     headers.append("HTTP/1.1 ");
     headers.append(StatusCode(mode));
-    headers.append("\n");
+    headers.append("\r\n");
+    headers.append("Connection: close\r\n");
     headers.append(GetDate());
-    headers.append("\n");
-    headers.append("Server: HttpMediaServer/0.1\n");
-    headers.append("Last-Modified: Wed, 15 Nov 1995 04:58:08 GMT\n");
+    headers.append("\r\n");
+    headers.append("Server: HttpMediaServer/0.1\r\n");
     
-    if (!ContainsKey(parser.GetParams(), "live") &&
-        (mode == GET_FILE_RANGE || mode == GET_ENTIRE_FILE))
-    {
-      // We're doing a normal request, broadcast that we support byte range requests.
-      headers.append("Accept-Ranges: bytes\n");
+    if (!parser.IsLive()) {
+      if (mode == GET_ENTIRE_FILE) {
+        headers.append("Accept-Ranges: bytes\r\n");
+        headers.append("Content-Length: ");
+        headers.append(ToString(fileLength));
+        headers.append("\r\n");
+      } else if (mode == GET_FILE_RANGE) {
+        headers.append("Accept-Ranges: bytes\r\n");
+        headers.append("Content-Length: ");
+        headers.append(ToString(rangeEnd - rangeStart));
+        headers.append("\r\n");
+        headers.append("Content-Range: bytes ");
+        headers.append(ToString(rangeStart));
+        headers.append("-");
+        headers.append(ToString(rangeEnd));
+        headers.append("/");
+        headers.append(ToString(fileLength));
+        headers.append("\r\n");
+      }
     }
-    if (!ContainsKey(parser.GetParams(), "live") &&
-        mode == GET_ENTIRE_FILE)
-    {
-      headers.append("Content-Length: ");
-      headers.append(ToString(fileLength));
-      headers.append("\n");
-    } else if (mode == GET_FILE_RANGE) {
-      headers.append("Content-Length: ");
-      headers.append(ToString(rangeEnd - rangeStart));
-      headers.append("\n");
-      headers.append("Content-Range: bytes ");
-      headers.append(ToString(rangeStart));
-      headers.append("-");
-      headers.append(ToString(rangeEnd));
-      headers.append("/");
-      headers.append(ToString(fileLength));
-      headers.append("\n");
-    }
-    headers.append("Connection: close\n");
+    //headers.append("Last-Modified: Wed, 10 Nov 2009 04:58:08 GMT\r\n");
+
     headers.append("Content-Type: ");
     headers.append(ExtractContentType(path, mode));
-    headers.append("\n\n");
+    headers.append("\r\n\r\n");
 
     printf("Sending Headers %d:\n%s\n", parser.id, headers.c_str());
 
