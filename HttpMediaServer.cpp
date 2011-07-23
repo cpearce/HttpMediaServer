@@ -625,9 +625,18 @@ private:
   int64_t bytesRemaining;
 };
 
-class ConnectionThread : public Thread {
+class Connection : public Runnable{
 public:
-  ConnectionThread(SOCKET s) : ClientSocket(s) {}
+  Connection(SOCKET s)
+    : ClientSocket(s)
+  {
+    mThread = Thread::Create(this);
+  }
+
+  void Start() {
+    mThread->Start();
+  }
+
   virtual void Run() {
     char recvbuf[DEFAULT_BUFLEN];
     int iResult, iSendResult;
@@ -690,12 +699,14 @@ public:
 private:
   SOCKET ClientSocket;
   RequestParser parser;
+  Thread* mThread;
 };
 
 int _tmain(int argc, _TCHAR* argv[])
 {
   RequestParser::Test();
   Response::Test();
+  Thread_Test();
 
   WSADATA wsaData;
 
@@ -757,7 +768,7 @@ int _tmain(int argc, _TCHAR* argv[])
   }
 
   SOCKET ClientSocket;
-  vector<ConnectionThread*> Connections;
+  vector<Connection*> Connections;
   while (1) {
     // Accept a single connection.
     ClientSocket = INVALID_SOCKET;
@@ -770,7 +781,7 @@ int _tmain(int argc, _TCHAR* argv[])
       WSACleanup();
       return 1;
     }
-    ConnectionThread *t = new ConnectionThread(ClientSocket);
+    Connection *t = new Connection(ClientSocket);
     t->Start();
     Connections.push_back(t);
   }
