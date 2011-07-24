@@ -75,14 +75,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="RequestParser.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Thread.h" />
+    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="HttpMediaServer.cpp" />
+    <ClCompile Include="RequestParser.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Thread.cpp" />
+    <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

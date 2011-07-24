@@ -1,3 +1,6 @@
+#ifndef __THREAD_H__
+#define __THREAD_H__
+
 // Platform independent thread wrapper.
 
 class Runnable {
@@ -18,3 +21,5 @@ protected:
 };
 
 void Thread_Test();
+
+#endif

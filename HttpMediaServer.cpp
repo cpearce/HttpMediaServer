@@ -5,7 +5,6 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
-#include "Thread.h"
 #include <vector>
 #include <string>
 #include <assert.h>
@@ -13,303 +12,16 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <map>
-using namespace std;
+
+
+#include "Utils.h"
+#include "Thread.h"
+#include "RequestParser.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
 #define DEFAULT_BUFLEN 512
 
-typedef __int64 int64_t;
-
-enum eMethod { UNKNOWN, HEAD, GET, POST };
-
-string ToString(int64_t i) {
-  char buf[256];
-  sprintf_s(buf, 256, "%lld", i);
-  return string(buf);
-}
-
-string Flatten(const map<string, string>& m) {
-  string s;
-  map<string,string>::const_iterator itr = m.begin();
-  while (itr != m.end()) {
-    string key = itr->first;
-    string value = itr->second;
-    s.append(key);
-    s.append("='");
-    s.append(value);
-    s.append("'");
-    itr++;
-    if (itr != m.end()) {
-      s.append(" ");
-    }
-  }
-  return s;
-}
-
-bool ContainsKey(const map<string,string> m, const string& key) {
-  return m.count(key) > 0;
-}
-
-/*
-Usage:
-
- vector<string> tokens;
-	 string str("Split,me up!Word2 Word3.");
-	 Tokenize(str, tokens, ",<'> " );
-	 vector <string>::iterator iter;
-	 for(iter = tokens.begin();iter!=tokens.end();iter++){
-	 		cout<< (*iter) << endl;
-	}
-
-*/
-void Tokenize(const string& str,
-              vector<string>& tokens,
-              const string& delimiters)
-{
-  // Skip delimiters at beginning.
-  string::size_type lastPos = str.find_first_not_of(delimiters, 0);
-  // Find first "non-delimiter".
-  string::size_type pos     = str.find_first_of(delimiters, lastPos);
-  while (string::npos != pos || string::npos != lastPos)
-  {
-    // Found a token, add it to the vector.
-    tokens.push_back(str.substr(lastPos, pos - lastPos));
-    // Skip delimiters.  Note the "not_of"
-    lastPos = str.find_first_not_of(delimiters, pos);
-    // Find next "non-delimiter"
-    pos = str.find_first_of(delimiters, lastPos);
-  }
-}
-
-static int gCount = 0;
-
-class RequestParser {
-public:
-  RequestParser()
-    : start(0),
-      complete(false),
-      method(UNKNOWN),
-      rangeStart(-1),
-      rangeEnd(-1),
-      hasRange(false),
-      id(gCount++)
-  {
-  }
-
-  void Add(const char* buf, unsigned len) {
-    assert(!complete);
-    string str(buf, len);
-    request += str;
-    const char* linebr = "\r\n";
-    assert(linebr[0] == 13);
-    assert(linebr[1] == 10);
-    // Continue to parse request.
-    while (start < request.size()) {
-      size_t end = request.find(linebr, start, 2);
-      if (end == string::npos)
-        break;
-      if (start == end)
-        complete = true;
-      string l = string(request, start, end - start);
-      Parse(l);
-      start = end + 2;
-    }
-    printf("Request %d:\n%s", id, buf);
-  }
-
-  bool IsComplete() {
-    return complete;
-  }
-
-  eMethod GetMethod() {
-    return method;
-  }
-  
-  string GetTarget() {
-    return target;
-  }
-
-  const map<string, string>& GetParams() const {
-    return params;
-  }
-
-  static void Test() {
-    assert(ExtractMethod("GET / HTTP1.1") == GET);
-    assert(ExtractMethod("HEAD / HTTP1.1") == HEAD);
-    assert(ExtractMethod("POST / HTTP1.1") == POST);
-    assert(ExtractMethod("Error / HTTP1.1") == UNKNOWN);
-
-    assert(ExtractTarget("GET / HTTP1.1") == "");
-    assert(ExtractTarget("GET // HTTP1.1") == "");
-    assert(ExtractTarget("GET /// HTTP1.1") == "");
-    assert(ExtractTarget("GET /dir/file.txt HTTP1.1") == "dir/file.txt");
-    assert(ExtractTarget("GET /dir/file.txt?params HTTP1.1") == "dir/file.txt");
-    assert(ExtractTarget("GET /?params HTTP1.1") == "");
-    assert(ExtractTarget("GET //?params HTTP1.1") == "");
-
-    assert(Flatten(ExtractQueryParams("GET / HTTP1.1")) == "");
-
-    assert(Flatten(ExtractQueryParams("GET // HTTP1.1")) == "");
-    assert(Flatten(ExtractQueryParams("GET /// HTTP1.1")) == "");
-    assert(Flatten(ExtractQueryParams("GET /dir/file.txt HTTP1.1")) == "");
-    assert(Flatten(ExtractQueryParams("GET /dir/file.txt? HTTP1.1")) == "");
-    assert(Flatten(ExtractQueryParams("GET /dir/file.txt?params HTTP1.1")) == "params=''");
-    assert(Flatten(ExtractQueryParams("GET /dir/file.txt?param1&param2&param3 HTTP1.1")) == "param1='' param2='' param3=''");
-    assert(Flatten(ExtractQueryParams("GET /dir/file.txt?param1=val1&param2=val2&param3=val3 HTTP1.1")) == "param1='val1' param2='val2' param3='val3'");
-    assert(Flatten(ExtractQueryParams("GET /?params HTTP1.1")) == "params=''");
-    assert(Flatten(ExtractQueryParams("GET /? HTTP1.1")) == "");
-    assert(Flatten(ExtractQueryParams("GET //?params HTTP1.1")) == "params=''");
-
-    assert(TestRange(true, "Range: bytes=0-1024", 0, 1024));
-    assert(TestRange(false, "Range: time=0-1024", 0, 0));
-    assert(TestRange(true, "Range: bytes=0-", 0, -1));
-    assert(TestRange(true, "Range: bytes=1024-", 1024, -1));
-    assert(TestRange(true, "Range: bytes=232128512-", 232128512, -1));
-  }
-
-  void GetRange(int64_t& start, int64_t& end) const {
-    start = rangeStart;
-    end = rangeEnd;
-  }
-
-  bool IsRangeRequest() const {
-    return hasRange;
-  }
-
-  bool IsLive() const {
-    return ContainsKey(GetParams(), "live");
-  }
-
-  const int id;
-
-private:
-
-  static bool TestRange(bool expected,
-                        const string& s,
-                        int64_t expStart,
-                        int64_t expEnd)
-  {
-    int64_t start=-2, end=-2;
-    bool r = ParseRange(s, start, end);
-    return r == expected &&
-           (!expected || start == expStart && end == expEnd);
-  }
-
-  void Parse(const string& s) {
-    if (start == 0) {
-      // Request line.
-      ParseRequestLine(s);
-    } else if (s.find("Range") == 0) {
-      int64_t start,end;
-      if (ParseRange(s, start, end)) {
-        rangeStart = start;
-        rangeEnd = end;
-        hasRange = true;
-      }
-    }
-  }
-
-  static bool ParseRange(const string& s, int64_t& start, int64_t& end) {
-    // Range: bytes=start,end
-    size_t sp = s.find(" ");
-    size_t eq = s.find("=");
-    if (sp == string::npos || eq == string::npos)
-      return false;
-    string bytes(s, sp + 1, eq - sp - 1);
-    if (bytes != "bytes") {
-      // The space is not followed by "bytes=", this is an invalid range param.
-      return false;
-    }
-
-    string range(s, eq + 1);
-    size_t dash = range.find("-");
-    if (dash == string::npos)
-      return false;
-    string startStr(range, 0, dash);
-    string endStr(range, dash + 1);
-
-    start = _atoi64(startStr.c_str());
-    if (endStr != "") {
-      end = _atoi64(endStr.c_str());
-    } else {
-      end = -1;
-    }
-
-    return true;
-  }
-
-  static eMethod ExtractMethod(const string& request) {
-    size_t sp = request.find(" ");
-    string m(request, 0, sp);
-    if (m == "GET")
-      return GET;
-    else if (m == "HEAD")
-      return HEAD;
-    else if (m == "POST")
-      return POST;
-    return UNKNOWN;
-  }
-
-  static string ExtractTarget(const string& request) {
-    size_t start = request.find("/") + 1;
-    size_t query = request.find("?", start); // Location of query params.
-    size_t end = (query != string::npos) ? query : request.find(" ", start);
-    // Remove trailing slashes.
-    while (end > start && request.at(end - 1) == '/') {
-      end--;
-    }
-    return string(request, start, end - start);
-  }
-
-  static map<string, string> ExtractQueryParams(const string& request) {
-    map<string,string> m;
-    size_t query = request.find("?");
-    if (query == string::npos)
-      return m;
-    size_t start = query + 1;
-    size_t end = request.find(" ", start);
-    vector<string> v;
-    Tokenize(string(request, start, end - start), v, "&");
-    for (unsigned i=0; i<v.size(); i++) {
-      size_t eq = v[i].find("=");
-      string key;
-      string value;
-      if (eq == string::npos) {
-        key = v[i];
-        value = "";
-      } else {
-        key = string(v[i], 0, eq);
-        value = string(v[i], eq + 1, v[i].size() - eq - 1);
-      }
-      m[key] = value;
-    }
-    return m;
-  }
-
-  void ParseRequestLine(const string& request) {
-    // Extract method.
-    method = ExtractMethod(request);
-    target = ExtractTarget(request);
-    params = ExtractQueryParams(request);
-    //printf("Target: '%s'\n", target.c_str());
-    //printf("Params: '%s'\n", Flatten(params).c_str());
-  }
-  
-  string request;
-  size_t start;
-  vector<string> lines;
-  bool complete;
-  eMethod method;
-  string target;
-  map<string, string> params;
-  int64_t rangeStart, rangeEnd;
-  bool hasRange;
-};
-
-#define ARRAY_LENGTH(array_) \
-  (sizeof(array_)/sizeof(array_[0]))
 
 static const char* gContentTypes[][2] = {
   {"ogv", "video/ogg"},
@@ -323,7 +35,13 @@ static const char* gContentTypes[][2] = {
 
 class Response {
 
-  enum eMode { GET_ENTIRE_FILE, GET_FILE_RANGE, DIR_LIST, ERROR_FILE_NOT_EXIST, INTERNAL_ERROR };
+  enum eMode {
+    GET_ENTIRE_FILE,
+    GET_FILE_RANGE,
+    DIR_LIST,
+    ERROR_FILE_NOT_EXIST,
+    INTERNAL_ERROR
+  };
 
 public:
   Response(RequestParser p)
