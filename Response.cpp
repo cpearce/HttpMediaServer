@@ -134,31 +134,6 @@ bool Response::SendBody(Socket *aSocket) {
     printf("Sent (empty) body (%d)\n", parser.id);
     return false;
   }
-  /*if (mode == DIR_LIST) {
-    SendDirectoryList();
-  } else */
-
-  int select = aSocket->Select();
-  if (select & SOCKET_CAN_READ) {
-    char recvbuf[DEFAULT_BUFLEN];
-    int iResult;
-    int recvbuflen = DEFAULT_BUFLEN;
-    iResult = aSocket->Receive(recvbuf, recvbuflen);
-    if (iResult > 0) {
-      //parser.Add(recvbuf, iResult);
-      printf("%d read data unexpectedly!:\n%s\n", parser.id, recvbuf);
-    } else if (iResult == 0) {
-      printf("%d Connection closing...\n", parser.id);
-      return false;
-    } else {
-      aSocket->Close();
-      return false;
-    }
-    return true;
-  } else if (!(select & SOCKET_CAN_WRITE)) {
-    // Unable to write any more data?
-    return true;
-  }
 
   unsigned len = 1024;
   unsigned wait = 0;

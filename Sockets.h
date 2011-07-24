@@ -25,11 +25,6 @@ public:
   // <0 on error.
   virtual int Receive(char* aBuf, int aSize) = 0;
 
-  // Return values:
-  #define SOCKET_CAN_READ 1
-  #define SOCKET_CAN_WRITE 2
-  virtual int Select() = 0;
-
 protected:
   Socket() {}
 };

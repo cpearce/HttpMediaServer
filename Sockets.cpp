@@ -19,7 +19,6 @@ public:
   void Close();
   int Send(const char* aBuf, int aSize);
   int Receive(char* aBuf, int aSize);
-  int Select();
 
   static WSADATA sWsaData;
   SOCKET mSocket;
@@ -98,6 +97,7 @@ Socket* Win32Socket::Accept() {
 void Win32Socket::Close() {
   if (mSocket != INVALID_SOCKET) {
     closesocket(mSocket);
+    mSocket = INVALID_SOCKET;
   }
 }
 
@@ -114,24 +114,6 @@ int Win32Socket::Send(const char* aBuf, int aSize) {
   return send(mSocket, aBuf, aSize, 0);
 }
 
-int Win32Socket::Select() {
-  fd_set readFd, writeFd;
-  FD_ZERO(&readFd);
-  FD_ZERO(&writeFd);
-  FD_SET(mSocket, &readFd);
-  FD_SET(mSocket, &writeFd);
-  // Wait until we can write.
-  select(0, &readFd, &writeFd, 0, 0);
-  int r = 0;
-  if (FD_ISSET(socket, &readFd)) {
-    r |= SOCKET_CAN_READ;
-  }
-  if (!FD_ISSET(socket, &writeFd)) {
-    r |= SOCKET_CAN_WRITE;
-  }
-  return r;
-}
-
 int Socket::Init() {
   // Initialize Winsock
   int err = WSAStartup(MAKEWORD(2,2), &Win32Socket::sWsaData);
@@ -144,6 +126,105 @@ int Socket::Init() {
 
 int Socket::Shutdown() {
   WSACleanup();
+  return 0;
+}
+
+#else
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+
+class UnixSocket : public Socket {
+public:
+  virtual ~UnixSocket();
+  Socket* Accept();
+  UnixSocket(int aSocket);
+  void Close();
+  int Send(const char* aBuf, int aSize);
+  int Receive(char* aBuf, int aSize);
+
+  int mSocket;
+};
+
+Socket* Socket::Open(int aPort) {
+  int sockfd;
+  struct sockaddr_in serv_addr;
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0) {
+    perror("ERROR opening socket");
+    return 0;
+  }
+  bzero((char *) &serv_addr, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  serv_addr.sin_port = htons(aPort);
+  if (bind(sockfd,
+           (struct sockaddr *) &serv_addr,
+           sizeof(serv_addr)) < 0)
+  {
+    perror("ERROR on binding");
+    return 0;
+  }
+  listen(sockfd,5);
+
+  return new UnixSocket(sockfd);
+}
+
+UnixSocket::UnixSocket(int aSocket)
+  : mSocket(aSocket)
+{
+}
+
+UnixSocket::~UnixSocket() {
+  Close();
+}
+
+Socket* UnixSocket::Accept() {
+  socklen_t clilen;
+  struct sockaddr_in cli_addr;
+  clilen = sizeof(cli_addr);
+  int client = accept(mSocket, 
+                      (struct sockaddr *) &cli_addr, 
+                      &clilen);
+  if (client < 0)  {
+    perror("ERROR on accept");
+    close(mSocket);
+    return 0;
+  }
+  return new UnixSocket(client);
+}
+
+void UnixSocket::Close() {
+  if (mSocket != 0) {
+    close(mSocket);
+    mSocket = 0;
+  }
+}
+
+int UnixSocket::Receive(char* aBuf, int aSize) {
+  memset(aBuf, 0, aSize);
+  int r = read(mSocket, aBuf, aSize);
+  if (r < 0) {
+    fprintf(stderr, "Receive failed\n");
+  }
+  return r;
+}
+
+int UnixSocket::Send(const char* aBuf, int aSize) {
+  return write(mSocket, aBuf, aSize);
+}
+
+int Socket::Init() {
+  return 0;
+}
+
+int Socket::Shutdown() {
   return 0;
 }
 

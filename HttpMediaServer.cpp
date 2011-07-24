@@ -16,6 +16,12 @@
 
 using std::auto_ptr;
 
+#ifdef WIN32
+#define PORT 80
+#else
+#define PORT 8080
+#endif
+
 class Connection : public Runnable{
 public:
   Connection(Socket* s)
@@ -85,7 +91,7 @@ int main(int argc, char* argv[])
 
   Socket::Init();
 
-  auto_ptr<Socket> listener(Socket::Open(80));
+  auto_ptr<Socket> listener(Socket::Open(PORT));
   if (!listener.get()) {
     Socket::Shutdown();
     return 1;
