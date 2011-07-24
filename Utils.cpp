@@ -7,6 +7,12 @@ string ToString(int64_t i) {
   return string(buf);
 }
 
+string ToString(int i) {
+  char buf[12];
+  snprintf(buf, 12, "%d", i);
+  return string(buf);
+}
+
 string Flatten(const map<string, string>& m) {
   string s;
   map<string,string>::const_iterator itr = m.begin();

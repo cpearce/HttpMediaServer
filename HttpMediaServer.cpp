@@ -2,23 +2,23 @@
 //
 
 #include "stdafx.h"
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#include <Windows.h>
 #include <stdio.h>
 #include <vector>
 #include <string>
 #include <assert.h>
-#include <direct.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <memory>
 
 
 #include "Utils.h"
 #include "Thread.h"
 #include "RequestParser.h"
+#include "Sockets.h"
 
-#pragma comment(lib, "Ws2_32.lib")
+using std::auto_ptr;
 
 #define DEFAULT_BUFLEN 512
 
@@ -88,7 +88,7 @@ public:
     }
   }
 
-  bool SendHeaders(SOCKET socket) {
+  bool SendHeaders(Socket* aSocket) {
     string headers;
     headers.append("HTTP/1.1 ");
     headers.append(StatusCode(mode));
@@ -126,11 +126,11 @@ public:
 
     printf("Sending Headers %d:\n%s\n", parser.id, headers.c_str());
 
-    return SOCKET_ERROR != send(socket, headers.c_str(), headers.size(), 0);
+    return aSocket->Send(headers.c_str(), headers.size()) != -1;
   }
 
   // Returns true if we need to call again.
-  bool SendBody(SOCKET socket) {
+  bool SendBody(Socket *aSocket) {
     if (mode == ERROR_FILE_NOT_EXIST) {
       printf("Sent (empty) body (%d)\n", parser.id);
       return false;
@@ -138,38 +138,26 @@ public:
     /*if (mode == DIR_LIST) {
       SendDirectoryList();
     } else */
-    fd_set readFd, writeFd;
-    FD_ZERO(&readFd);
-    FD_ZERO(&writeFd);
-    FD_SET(socket, &readFd);
-    FD_SET(socket, &writeFd);
-    // Wait until we can write.
-    select(0, &readFd, &writeFd, 0, 0);
 
-    if (FD_ISSET(socket, &readFd)) {
-
+    int select = aSocket->Select();
+    if (select & SOCKET_CAN_READ) {
       char recvbuf[DEFAULT_BUFLEN];
-      int iResult, iSendResult;
+      int iResult;
       int recvbuflen = DEFAULT_BUFLEN;
-
-      memset(recvbuf, 0, DEFAULT_BUFLEN);
-      iResult = recv(socket, recvbuf, recvbuflen, 0);
+      iResult = aSocket->Receive(recvbuf, recvbuflen);
       if (iResult > 0) {
         //parser.Add(recvbuf, iResult);
         printf("%d read data unexpectedly!:\n%s\n", parser.id, recvbuf);
       } else if (iResult == 0) {
         printf("%d Connection closing...\n", parser.id);
         return false;
-        //break;
       } else {
-        printf("%d recv failed: %d\n", parser.id, WSAGetLastError());
-        closesocket(socket);
+        aSocket->Close();
         return false;
       }
-      printf("%d recv in sendBody:\n%s", parser.id, recvbuf);
-
       return true;
-    } else if (!FD_ISSET(socket, &writeFd)) {
+    } else if (!(select & SOCKET_CAN_WRITE)) {
+      // Unable to write any more data?
       return true;
     }
 
@@ -207,11 +195,10 @@ public:
       //const unsigned len = 1024;
       char* buf = new char[len];
       unsigned x = fread(buf, 1, len, file);
-      int r = send(socket, buf, x, 0);
+      int r = aSocket->Send(buf, x);
       delete buf;
-      if (SOCKET_ERROR == r) {
+      if (r < 0) {
         // Some kind of error.
-        printf("%d Send failed: %d\n", parser.id, WSAGetLastError());
         return false;
       }
       
@@ -244,11 +231,10 @@ public:
       len = min(bytesRemaining, len);
       unsigned bytesSent = fread(buf, 1, len, file);
       bytesRemaining -= bytesSent;
-      int r = send(socket, buf, bytesSent, 0);
+      int r = aSocket->Send(buf, bytesSent);
       delete buf;
-      if (SOCKET_ERROR == r) {
+      if (r < 0) {
         // Some kind of error.
-        printf("%d send failed: %d\n", parser.id, WSAGetLastError());
         return false;
       }
       //printf("%d %s Send [%lld,%u]\n", parser.id, path.c_str(), offset, offset+bytesSent);
@@ -345,8 +331,8 @@ private:
 
 class Connection : public Runnable{
 public:
-  Connection(SOCKET s)
-    : ClientSocket(s)
+  Connection(Socket* s)
+    : mClientSocket(s)
   {
     mThread = Thread::Create(this);
   }
@@ -357,65 +343,49 @@ public:
 
   virtual void Run() {
     char recvbuf[DEFAULT_BUFLEN];
-    int iResult, iSendResult;
     int recvbuflen = DEFAULT_BUFLEN;
 
     // Receive until the peer shuts down the connection
     while (!parser.IsComplete()) {
-      memset(recvbuf, 0, DEFAULT_BUFLEN);
-      iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
-      if (iResult > 0) {
-        parser.Add(recvbuf, iResult);
-      } else if (iResult == 0) {
+      int r = mClientSocket->Receive(recvbuf, recvbuflen);
+      if (r > 0) {
+        parser.Add(recvbuf, r);
+      } else if (r == 0) {
         printf("Connection closing...\n");
         break;
       } else {
-        printf("recv failed: %d\n", WSAGetLastError());
-        closesocket(ClientSocket);
+        mClientSocket->Close();
         return;
       }
-
     }
 
     Response response(parser);
 
-    if (!response.SendHeaders(ClientSocket)) {
-      printf("Failed to send headers: %d\n", WSAGetLastError());
-      closesocket(ClientSocket);
+    if (!response.SendHeaders(mClientSocket.get())) {
+      mClientSocket->Close();
       return;
     }
 
-    while (response.SendBody(ClientSocket)) {
-      //iResult = recv(ClientSocket, recvbuf, recvbuflen, MSG_PEEK);
-      //if (iResult == 0) {
-      //  printf("Connection reset by peer\n");
-      //  //closesocket(ClientSocket);
-      //  break;
-      //}
+    while (response.SendBody(mClientSocket.get())) {
+      // Transmit the body.
     }
 
-    //printf("%s\n", GetDate().c_str());
-    //const char* reply = "HTTP/1.1 200 OK\nDate: Fri, 12 Nov 2010 01:03:01 GMT\nServer: HttpMediaServer/0.1\nContent-Type: text/html\n\nReady to serve.\0";
-    //iSendResult = send(ClientSocket, reply, strlen(reply), 0);
-    //if (iSendResult == SOCKET_ERROR) {
-    //  printf("send failed: %d\n", WSAGetLastError());
-    //  closesocket(ClientSocket);
+
+    // shutdown the send half of the connection since no more data will be sent
+    // TODO: Is this needed?
+    //mClientSocket->CloseSend();
+    //iResult = shutdown(ClientSocket, SD_SEND);
+    //if (iResult == SOCKET_ERROR) {
+    //  printf("shutdown failed: %d\n", WSAGetLastError());
+    //  mClientSocket->Close();
     //  return;
     //}
 
-    // shutdown the send half of the connection since no more data will be sent
-    iResult = shutdown(ClientSocket, SD_SEND);
-    if (iResult == SOCKET_ERROR) {
-      printf("shutdown failed: %d\n", WSAGetLastError());
-      closesocket(ClientSocket);
-      return;
-    }
-
     // cleanup
-    closesocket(ClientSocket);
+    mClientSocket->Close();
   }
 private:
-  SOCKET ClientSocket;
+  auto_ptr<Socket> mClientSocket;
   RequestParser parser;
   Thread* mThread;
 };
@@ -426,85 +396,29 @@ int _tmain(int argc, _TCHAR* argv[])
   Response::Test();
   Thread_Test();
 
-  WSADATA wsaData;
+  Socket::Init();
 
-  int iResult;
-
-  // Initialize Winsock
-  iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
-  if (iResult != 0) {
-    printf("WSAStartup failed: %d\n", iResult);
+  auto_ptr<Socket> listener(Socket::Open(80));
+  if (!listener.get()) {
+    Socket::Shutdown();
     return 1;
   }
 
-  // Init a server port.
-  struct addrinfo *result = NULL, *ptr = NULL, hints;
-
-  ZeroMemory(&hints, sizeof (hints));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
-  hints.ai_flags = AI_PASSIVE;
-
-  // Resolve the local address and port to be used by the server
-  iResult = getaddrinfo(NULL, "80", &hints, &result);
-  if (iResult != 0) {
-    printf("getaddrinfo failed: %d\n", iResult);
-    WSACleanup();
-    return 1;
-  }
-
-  SOCKET ListenSocket = INVALID_SOCKET;
-  // Create a SOCKET for the server to listen for client connections
-  ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-
-  if (ListenSocket == INVALID_SOCKET) {
-    printf("Error at socket(): %ld\n", WSAGetLastError());
-    freeaddrinfo(result);
-    WSACleanup();
-    return 1;
-  }
-
-  // Setup the TCP listening socket
-  iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
-  if (iResult == SOCKET_ERROR) {
-    printf("bind failed: %d\n", WSAGetLastError());
-    freeaddrinfo(result);
-    closesocket(ListenSocket);
-    WSACleanup();
-    return 1;
-  }
-
-  // Address info is no longer needed, we've bound the socket.
-  freeaddrinfo(result);
-
-  if ( listen( ListenSocket, SOMAXCONN ) == SOCKET_ERROR ) {
-    printf( "Listen failed with error: %ld\n", WSAGetLastError() );
-    closesocket(ListenSocket);
-    WSACleanup();
-    return 1;
-  }
-
-  SOCKET ClientSocket;
   vector<Connection*> Connections;
-  while (1) {
+  while (true) {
     // Accept a single connection.
-    ClientSocket = INVALID_SOCKET;
-
-    // Accept a client socket
-    ClientSocket = accept(ListenSocket, NULL, NULL);
-    if (ClientSocket == INVALID_SOCKET) {
-      printf("accept failed: %d\n", WSAGetLastError());
-      closesocket(ListenSocket);
-      WSACleanup();
+    Socket* client = listener->Accept();
+    if (!client) {
+      Socket::Shutdown();
       return 1;
     }
-    Connection *t = new Connection(ClientSocket);
-    t->Start();
-    Connections.push_back(t);
+
+    Connection *c = new Connection(client);
+    c->Start();
+    Connections.push_back(c);
   }
 
-  WSACleanup();
+  Socket::Shutdown();
   
   return 0;
 }

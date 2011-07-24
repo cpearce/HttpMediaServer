@@ -19,6 +19,7 @@ using std::string;
 using std::vector;
 
 string ToString(int64_t i);
+string ToString(int i);
 
 string Flatten(const map<string, string>& m);
 
