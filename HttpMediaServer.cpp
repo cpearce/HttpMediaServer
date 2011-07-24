@@ -1,8 +1,4 @@
-// EchoServer.cpp : Defines the entry point for the console application.
-//
 
-#include "stdafx.h"
-#include <Windows.h>
 #include <stdio.h>
 #include <vector>
 #include <string>
@@ -12,7 +8,6 @@
 #include <sys/stat.h>
 #include <memory>
 
-
 #include "Utils.h"
 #include "Thread.h"
 #include "RequestParser.h"
@@ -20,8 +15,6 @@
 #include "Response.h"
 
 using std::auto_ptr;
-
-
 
 class Connection : public Runnable{
 public:
@@ -84,7 +77,7 @@ private:
   Thread* mThread;
 };
 
-int _tmain(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
   RequestParser::Test();
   Response::Test();
