@@ -44,4 +44,6 @@ void Tokenize(const string& str,
 #define ARRAY_LENGTH(array_) \
   (sizeof(array_)/sizeof(array_[0]))
 
+#define DEFAULT_BUFLEN 512
+
 #endif
