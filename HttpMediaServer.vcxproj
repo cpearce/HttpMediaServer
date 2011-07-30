@@ -78,7 +78,6 @@
     <ClInclude Include="RequestParser.h" />
     <ClInclude Include="Response.h" />
     <ClInclude Include="Sockets.h" />
-    <ClInclude Include="targetver.h" />
     <ClInclude Include="Thread.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
