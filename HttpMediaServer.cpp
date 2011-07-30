@@ -4,8 +4,6 @@
 #include <string>
 #include <assert.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <memory>
 
 #include "Utils.h"
@@ -62,17 +60,6 @@ public:
     while (response.SendBody(mClientSocket.get())) {
       // Transmit the body.
     }
-
-
-    // shutdown the send half of the connection since no more data will be sent
-    // TODO: Is this needed?
-    //mClientSocket->CloseSend();
-    //iResult = shutdown(ClientSocket, SD_SEND);
-    //if (iResult == SOCKET_ERROR) {
-    //  printf("shutdown failed: %d\n", WSAGetLastError());
-    //  mClientSocket->Close();
-    //  return;
-    //}
 
     // cleanup
     mClientSocket->Close();

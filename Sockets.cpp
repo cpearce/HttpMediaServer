@@ -1,3 +1,9 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "Sockets.h"
 #include "Utils.h"
 
@@ -5,9 +11,6 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -131,14 +134,8 @@ int Socket::Shutdown() {
 
 #else
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
-#include <sys/types.h> 
-#include <sys/socket.h>
 #include <netinet/in.h>
-
 
 class UnixSocket : public Socket {
 public:
