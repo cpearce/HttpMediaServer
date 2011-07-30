@@ -59,12 +59,12 @@ bool ContainsKey(const map<string,string> m, const string& key);
 /*
 Usage:
 
- vector<string> tokens;
-	 string str("Split,me up!Word2 Word3.");
-	 Tokenize(str, tokens, ",<'> " );
-	 vector <string>::iterator iter;
-	 for(iter = tokens.begin();iter!=tokens.end();iter++){
-	 		cout<< (*iter) << endl;
+  vector<string> tokens;
+	string str("Split,me up!Word2 Word3.");
+	Tokenize(str, tokens, ",<'> " );
+	vector <string>::iterator iter;
+	for(iter = tokens.begin();iter!=tokens.end();iter++){
+	 	cout<< (*iter) << endl;
 	}
 
 */
