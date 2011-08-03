@@ -35,6 +35,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <iostream>
+
 #include "Sockets.h"
 #include "Utils.h"
 
@@ -83,7 +85,7 @@ Socket* Socket::Open(int aPort) {
   string port = ToString(aPort);
   int res = getaddrinfo(NULL, port.c_str(), &hints, &addr);
   if (res != 0) {
-    printf("getaddrinfo failed: %d\n", res);
+    std::cerr << "getaddrinfo failed: " << res << std::endl;
     return 0;
   }
 
@@ -92,7 +94,7 @@ Socket* Socket::Open(int aPort) {
   serverSocket = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 
   if (serverSocket == INVALID_SOCKET) {
-    printf("Error at socket(): %ld\n", WSAGetLastError());
+    std::cerr << "Error at socket(): " << WSAGetLastError() << std::endl;
     freeaddrinfo(addr);
     return 0;
   }
@@ -100,7 +102,7 @@ Socket* Socket::Open(int aPort) {
   // Setup the TCP listening socket
   res = bind( serverSocket, addr->ai_addr, (int)addr->ai_addrlen);
   if (res == SOCKET_ERROR) {
-    printf("bind failed: %d\n", WSAGetLastError());
+    std::cerr << "bind failed: " << WSAGetLastError() << std::endl;
     freeaddrinfo(addr);
     closesocket(serverSocket);
     return 0;
@@ -110,7 +112,7 @@ Socket* Socket::Open(int aPort) {
   freeaddrinfo(addr);
 
   if ( listen( serverSocket, SOMAXCONN ) == SOCKET_ERROR ) {
-    printf("Listen failed with error: %ld\n", WSAGetLastError() );
+    std::cerr << "Listen failed with error: " << WSAGetLastError() << std::endl;
     closesocket(serverSocket);
     return 0;
   }
@@ -121,7 +123,7 @@ Socket* Socket::Open(int aPort) {
 Socket* Win32Socket::Accept() {
   SOCKET client = accept(mSocket, NULL, NULL);
   if (client == INVALID_SOCKET) {
-    printf("accept failed: %d\n", WSAGetLastError());
+    std::cerr << "accept failed: " << WSAGetLastError() << std::endl;
     closesocket(mSocket);
     return 0;
   }
@@ -139,7 +141,7 @@ int Win32Socket::Receive(char* aBuf, int aSize) {
   memset(aBuf, 0, aSize);
   int r = recv(mSocket, aBuf, aSize, 0);
   if (r < 0) {
-    printf("recv failed: %d\n", WSAGetLastError());
+    std::cerr << "recv failed: " << WSAGetLastError() << std::endl;
   }
   return r;
 }
@@ -152,7 +154,7 @@ int Socket::Init() {
   // Initialize Winsock
   int err = WSAStartup(MAKEWORD(2,2), &Win32Socket::sWsaData);
   if (err) {
-    printf("WSAStartup failed: %d\n", err);
+    std::cerr << "WSAStartup failed: " << err << std::endl;
     return 1;
   }
   return 0;

@@ -32,6 +32,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <iostream>
+
 #include "RequestParser.h"
 
 static int gCount = 0;
@@ -65,7 +68,7 @@ void RequestParser::Add(const char* buf, unsigned len) {
     Parse(l);
     start = end + 2;
   }
-  printf("Request %d:\n%s", id, buf);
+  std::cout << "Request " << id << std::endl << buf;
 }
 
 #ifdef _DEBUG

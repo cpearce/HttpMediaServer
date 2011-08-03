@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
+#include <iostream>
 #include <assert.h>
 #include <stdlib.h>
 #include <memory>
@@ -72,7 +73,7 @@ public:
       if (r > 0) {
         parser.Add(recvbuf, r);
       } else if (r == 0) {
-        printf("Connection closing...\n");
+        std::cout << "Connection closing..." << std::endl;
         break;
       } else {
         mClientSocket->Close();
