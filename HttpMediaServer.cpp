@@ -117,6 +117,8 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  std::cout << "Now listening on port: " << PORT << std::endl;
+
   vector<Connection*> Connections;
   while (true) {
     // Accept a single connection.
