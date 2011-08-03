@@ -29,7 +29,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <Windows.h>
 #define S_ISDIR(m) ((m & _S_IFDIR) == _S_IFDIR)
 #define fseek64 _fseeki64
