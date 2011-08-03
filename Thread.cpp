@@ -192,6 +192,7 @@ public:
   Thread* mSumThread;
 };
 
+#ifdef _DEBUG
 void Thread_Test() {
   Sum s1(0,10);
   Sum *s2 = new Sum(10,20);
@@ -226,3 +227,4 @@ void Thread_Test() {
   delete t3;
   delete t4;
 }
+#endif

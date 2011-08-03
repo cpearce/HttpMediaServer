@@ -102,9 +102,11 @@ private:
 
 int main(int argc, char* argv[])
 {
+#ifdef _DEBUG
   RequestParser::Test();
   Response::Test();
   Thread_Test();
+#endif
 
   Socket::Init();
 

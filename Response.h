@@ -54,7 +54,9 @@ public:
   // Returns true if we need to call again.
   bool SendBody(Socket *aSocket);
 
+#ifdef _DEBUG
   static void Test();
+#endif
 
 private:
 

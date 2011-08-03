@@ -269,6 +269,7 @@ bool Response::SendBody(Socket *aSocket) {
   return false;
 }
 
+#ifdef _DEBUG
 void Response::Test() {
   assert(ExtractContentType("dir1/dir2/file.ogv", GET_ENTIRE_FILE) == string("video/ogg"));
   assert(ExtractContentType("dir1/dir2/file.ogg", GET_ENTIRE_FILE) == string("video/ogg"));
@@ -278,6 +279,7 @@ void Response::Test() {
   assert(ExtractContentType("dir1/dir2/file.txt", GET_ENTIRE_FILE) == string("text/plain"));
   assert(ExtractContentType("dir1/dir2/file.html", GET_ENTIRE_FILE) == string("text/html"));
 }
+#endif
 
 
 string Response::StatusCode(eMode mode) {

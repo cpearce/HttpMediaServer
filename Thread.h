@@ -51,6 +51,8 @@ protected:
   Runnable* mRunnable;
 };
 
+#ifdef _DEBUG
 void Thread_Test();
+#endif
 
 #endif

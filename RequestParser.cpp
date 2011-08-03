@@ -68,6 +68,7 @@ void RequestParser::Add(const char* buf, unsigned len) {
   printf("Request %d:\n%s", id, buf);
 }
 
+#ifdef _DEBUG
 void RequestParser::Test() {
   assert(ExtractMethod("GET / HTTP1.1") == GET);
   assert(ExtractMethod("HEAD / HTTP1.1") == HEAD);
@@ -101,6 +102,7 @@ void RequestParser::Test() {
   assert(TestRange(true, "Range: bytes=1024-", 1024, -1));
   assert(TestRange(true, "Range: bytes=232128512-", 232128512, -1));
 }
+#endif
 
 void RequestParser::GetRange(int64_t& start, int64_t& end) const {
   start = rangeStart;
