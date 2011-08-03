@@ -34,6 +34,14 @@
 
 // Wraps platform-specific socket API.
 class Socket {
+protected:
+  int mSocket;
+
+  Socket(int aSocket) : mSocket(aSocket) {}
+
+  // Wait on the socket for a read to become available
+  bool WaitForRead(unsigned timeout);
+
 public:
   // Initialize sockets library.
   static int Init();

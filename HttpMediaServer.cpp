@@ -29,13 +29,15 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <stdio.h>
-#include <vector>
-#include <string>
-#include <iostream>
 #include <assert.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
+
+#include <iostream>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "Utils.h"
 #include "Thread.h"
@@ -101,12 +103,25 @@ private:
   Thread* mThread;
 };
 
+static bool gRunning = true;
+
+void sighandler(int signal)
+{
+  gRunning = false;
+};
+
+
 int main(int argc, char* argv[])
 {
 #ifdef _DEBUG
   RequestParser::Test();
   Response::Test();
   Thread_Test();
+#endif
+
+  signal(SIGINT, sighandler);
+#ifdef SIGQUIT
+  signal(SIGQUIT, sighandler);
 #endif
 
   Socket::Init();
@@ -120,12 +135,11 @@ int main(int argc, char* argv[])
   std::cout << "Now listening on port: " << PORT << std::endl;
 
   vector<Connection*> Connections;
-  while (true) {
+  while (gRunning) {
     // Accept a single connection.
     Socket* client = listener->Accept();
     if (!client) {
-      Socket::Shutdown();
-      return 1;
+      continue;
     }
 
     Connection *c = new Connection(client);

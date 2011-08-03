@@ -57,13 +57,12 @@ public:
   int Receive(char* aBuf, int aSize);
 
   static WSADATA sWsaData;
-  SOCKET mSocket;
 };
 
 WSADATA Win32Socket::sWsaData = {0};
 
 Win32Socket::Win32Socket(SOCKET aSocket)
-  : mSocket(aSocket)
+  : Socket((int)aSocket)
 { }
 
 Win32Socket::~Win32Socket()
@@ -133,7 +132,7 @@ Socket* Win32Socket::Accept() {
 void Win32Socket::Close() {
   if (mSocket != INVALID_SOCKET) {
     closesocket(mSocket);
-    mSocket = INVALID_SOCKET;
+    mSocket = (int)INVALID_SOCKET;
   }
 }
 
@@ -169,6 +168,7 @@ int Socket::Shutdown() {
 
 #include <unistd.h>
 #include <netinet/in.h>
+#include <sys/select.h>
 
 class UnixSocket : public Socket {
 public:
@@ -178,8 +178,6 @@ public:
   void Close();
   int Send(const char* aBuf, int aSize);
   int Receive(char* aBuf, int aSize);
-
-  int mSocket;
 };
 
 Socket* Socket::Open(int aPort) {
@@ -207,7 +205,7 @@ Socket* Socket::Open(int aPort) {
 }
 
 UnixSocket::UnixSocket(int aSocket)
-  : mSocket(aSocket)
+  : Socket(aSocket)
 {
 }
 
@@ -219,6 +217,11 @@ Socket* UnixSocket::Accept() {
   socklen_t clilen;
   struct sockaddr_in cli_addr;
   clilen = sizeof(cli_addr);
+
+  if (!WaitForRead(500)) {
+    return 0;
+  }
+
   int client = accept(mSocket, 
                       (struct sockaddr *) &cli_addr, 
                       &clilen);
@@ -259,3 +262,15 @@ int Socket::Shutdown() {
 }
 
 #endif
+
+bool Socket::WaitForRead(unsigned timeout) {
+  fd_set socks;
+  FD_ZERO(&socks);
+  FD_SET((unsigned)mSocket, &socks);
+
+  struct timeval to;
+  to.tv_sec = 0;
+  to.tv_usec = timeout;
+  
+  return select(mSocket + 1, &socks, 0, 0, &to) > 0;
+}
