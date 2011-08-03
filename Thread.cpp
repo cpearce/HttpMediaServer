@@ -38,6 +38,7 @@
 #ifdef _WIN32
 
 #include "windows.h"
+#include <process.h>
 
 using namespace std;
 
@@ -50,8 +51,7 @@ public:
 
 private:
   HANDLE mHandle;
-  DWORD mId;
-  static DWORD WINAPI ThreadEntry(void *aThis);
+  static unsigned __stdcall ThreadEntry(void *aThis);
 
   enum ThreadState {
     eError = -1,
@@ -67,13 +67,13 @@ private:
 Win32Thread::Win32Thread(Runnable* aRunnable) 
   :Thread(aRunnable)
 {
-  mHandle = CreateThread (
+  mHandle = (HANDLE)_beginthreadex(
       0, // Security attributes
-      0, // Stack size
+      0, // Stack size: auto
       ThreadEntry,
       (void*)this,
       CREATE_SUSPENDED,
-      &mId);
+      0);
   assert(mHandle != 0);
   if (!mHandle) {
     mState = eError;
@@ -83,7 +83,7 @@ Win32Thread::Win32Thread(Runnable* aRunnable)
   }
 }
 
-DWORD WINAPI Win32Thread::ThreadEntry(void *aThis) {
+unsigned __stdcall Win32Thread::ThreadEntry(void *aThis) {
   Win32Thread* t = static_cast<Win32Thread*>(aThis);
   t->mState = eStarted;
   t->mRunnable->Run();
