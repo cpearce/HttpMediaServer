@@ -154,7 +154,7 @@ bool Response::SendHeaders(Socket* aSocket) {
 
   printf("Sending Headers %d:\n%s\n", parser.id, headers.c_str());
 
-  return aSocket->Send(headers.c_str(), headers.size()) != -1;
+  return aSocket->Send(headers.c_str(), (int)headers.size()) != -1;
 }
 
 // Returns true if we need to call again.
@@ -164,25 +164,35 @@ bool Response::SendBody(Socket *aSocket) {
     return false;
   }
 
-  unsigned len = 1024;
+  int len = 1024;
   unsigned wait = 0;
   if (ContainsKey(parser.GetParams(), "rate")) {
     const map<string,string> params = parser.GetParams();
     string rateStr = params.find("rate")->second;
-    float rate = atof(rateStr.c_str());
-    const float period = 0.1;
+    double rate = atof(rateStr.c_str());
+    const double period = 0.1;
     if (rate <= 0.0) {
       len = 1024;
       wait = 0;
     } else {
       len = (unsigned)(rate * 1024 * period);
-      wait = 1000 * period; // ms
+      wait = (unsigned)(period * 1000.0); // ms
     }
   }
 
   if (mode == GET_ENTIRE_FILE) {
     if (!file) {
+#ifdef _WIN32
+      if (fopen_s(&file, path.c_str(), "rb")) {
+        file = 0;
+        return false;
+      }
+#else
       file = fopen(path.c_str(), "rb");
+      if (!file) {
+        return false;
+      }
+#endif
     }
     if (feof(file)) {
       // Transmitted entire file!
@@ -195,7 +205,7 @@ bool Response::SendBody(Socket *aSocket) {
 
     // Transmit the next segment.
     char* buf = new char[len];
-    unsigned x = fread(buf, 1, len, file);
+    int x = (int)fread(buf, 1, len, file);
     int r = aSocket->Send(buf, x);
     delete buf;
     if (r < 0) {
@@ -211,7 +221,17 @@ bool Response::SendBody(Socket *aSocket) {
 
   } else if (mode == GET_FILE_RANGE) {
     if (!file) {
+#ifdef _WIN32
+      if (fopen_s(&file, path.c_str(), "rb")) {
+        file = 0;
+        return false;
+      }
+#else
       file = fopen(path.c_str(), "rb");
+      if (!file) {
+        return false;
+      }
+#endif
       fseek64(file, rangeStart, SEEK_SET);
       offset = rangeStart;
       bytesRemaining = rangeEnd - rangeStart;
@@ -226,10 +246,10 @@ bool Response::SendBody(Socket *aSocket) {
     // Transmit the next segment.
     char* buf = new char[len];
 
-    len = MIN(bytesRemaining, len);
-    unsigned bytesSent = fread(buf, 1, len, file);
+    len = (unsigned)MIN(bytesRemaining, len);
+    size_t bytesSent = fread(buf, 1, len, file);
     bytesRemaining -= bytesSent;
-    int r = aSocket->Send(buf, bytesSent);
+    int r = aSocket->Send(buf, (int)bytesSent);
     delete buf;
     if (r < 0) {
       // Some kind of error.
@@ -293,25 +313,41 @@ string Response::ExtractContentType(const string& file, eMode mode) {
   }
   return "application/octet-stream";
 }
+static char const month[12][4] = {
+  "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
+};
+static char const day[7][4] = {
+  "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
+};
 
 string Response::GetDate() {
   time_t rawtime;
   struct tm * t;
 
   time (&rawtime);
+  unsigned len = 0;
+
+#ifdef _WIN32
+  struct tm _t;
+  if (gmtime_s(&_t, &rawtime)) {
+    goto GetDate_Error;
+  }
+  t = &_t;
+#else
   t = gmtime (&rawtime);
+  if (!t) {
+    goto GetDate_Error;
+  }
+#endif
 
   char buf[128];
-  char month[12][4] = {
-    "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
-  };
-  char day[7][4] = {
-    "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
-  };
-  unsigned len = snprintf(buf, ARRAY_LENGTH(buf),
+  len = snprintf(buf, ARRAY_LENGTH(buf),
     "Date: %s, %d %s %d %.2d:%.2d:%.2d GMT",
     day[t->tm_wday], t->tm_mday, month[t->tm_mon],
     1900 + t->tm_year, t->tm_hour, t->tm_min, t->tm_sec);
 
   return string(buf, len);
+
+GetDate_Error:
+  return "Date: Thu Jan 01 1970 00:00:00 GMT";
 }
