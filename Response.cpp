@@ -73,8 +73,14 @@ static const char* gContentTypes[][2] = {
   {"oga", "audio/ogg"},
   {"webm", "video/webm"},
   {"wav", "audio/x-wav"},
-  {"html", "text/html"},
-  {"txt", "text/plain"}
+  {"html", "text/html; charset=utf-8"},
+  {"txt", "text/plain; charset=utf-8"},
+  {"js", "text/javascript; charset=utf-8"},
+  {"js", "text/css; charset=utf-8"},
+  {"jpg", "image/jpeg"},
+  {"jpeg", "image/jpeg"},
+  {"png", "image/png"},
+  {"gif", "image/gif"}
 };
 
 Response::Response(RequestParser p)
@@ -281,8 +287,13 @@ void Response::Test() {
   assert(ExtractContentType("dir1/dir2/file.oga", GET_ENTIRE_FILE) == string("audio/ogg"));
   assert(ExtractContentType("dir1/dir2/file.wav", GET_ENTIRE_FILE) == string("audio/x-wav"));
   assert(ExtractContentType("dir1/dir2/file.webm", GET_ENTIRE_FILE) == string("video/webm"));
-  assert(ExtractContentType("dir1/dir2/file.txt", GET_ENTIRE_FILE) == string("text/plain"));
-  assert(ExtractContentType("dir1/dir2/file.html", GET_ENTIRE_FILE) == string("text/html"));
+  assert(ExtractContentType("dir1/dir2/file.txt", GET_ENTIRE_FILE) == string("text/plain; charset=utf-8"));
+  assert(ExtractContentType("dir1/dir2/file.html", GET_ENTIRE_FILE) == string("text/html; charset=utf-8"));
+#ifdef _WIN32
+  assert(ExtractContentType("", DIR_LIST) == string("text/html; charset=windows"));
+#else
+  assert(ExtractContentType("", DIR_LIST) == string("text/html; charset=utf-8"));
+#endif
 }
 #endif
 
@@ -301,9 +312,13 @@ string Response::StatusCode(eMode mode) {
 
 string Response::ExtractContentType(const string& file, eMode mode) {
   if (mode == ERROR_FILE_NOT_EXIST || mode == INTERNAL_ERROR)
-    return "text/html; charset=iso-8859-1";
+    return "text/html; charset=utf-8s";
   if (mode == DIR_LIST)
-    return "text/html";
+#ifdef _WIN32
+    return "text/html; charset=windows";
+#else
+    return "text/html; charset=utf-8";
+#endif
 
   size_t dot = file.rfind(".");
   if (dot == string::npos) {
@@ -312,6 +327,7 @@ string Response::ExtractContentType(const string& file, eMode mode) {
   }
 
   string extension(file, dot+1, file.size() - dot - 1);
+  StrToLower(extension);
 
   for (unsigned i=0; i<ARRAY_LENGTH(gContentTypes); i++) {
     if (extension == gContentTypes[i][0]) {

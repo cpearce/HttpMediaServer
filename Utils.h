@@ -41,6 +41,7 @@ typedef unsigned __int64 uint64_t;
 #include <stdint.h>
 #endif
 
+#include <algorithm>
 #include <string>
 #include <map>
 #include <vector>
@@ -55,6 +56,11 @@ string ToString(int i);
 string Flatten(const map<string, string>& m);
 
 bool ContainsKey(const map<string,string> m, const string& key);
+
+inline string& StrToLower(string& s) {
+  std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+  return s;
+}
 
 /*
 Usage:
