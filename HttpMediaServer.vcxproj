@@ -75,6 +75,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="PathEnumerator.h" />
     <ClInclude Include="RequestParser.h" />
     <ClInclude Include="Response.h" />
     <ClInclude Include="Sockets.h" />
@@ -83,6 +84,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="HttpMediaServer.cpp" />
+    <ClCompile Include="PathEnumerator.cpp" />
     <ClCompile Include="RequestParser.cpp" />
     <ClCompile Include="Response.cpp" />
     <ClCompile Include="Sockets.cpp" />
