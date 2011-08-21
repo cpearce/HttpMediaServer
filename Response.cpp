@@ -29,11 +29,26 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#include "Response.h"
+#include "Utils.h"
+
 #ifdef _WIN32
 #include <Windows.h>
 #define S_ISDIR(m) ((m & _S_IFDIR) == _S_IFDIR)
 #define fseek64 _fseeki64
 #define ftell64 _ftelli64
+
+static int gmtime_r(const time_t *timep, struct tm *result) {
+  return gmtime_s(result, timep) == 0;
+}
+
 #else
 #define __stat64 stat64
 #define _stat64 stat64
@@ -48,16 +63,6 @@ void Sleep(int ms) {
 #endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-
-#include "Response.h"
-#include "Utils.h"
 
 #define DEFAULT_BUFLEN 512
 
@@ -315,41 +320,28 @@ string Response::ExtractContentType(const string& file, eMode mode) {
   }
   return "application/octet-stream";
 }
+
 static char const month[12][4] = {
   "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
 };
+
 static char const day[7][4] = {
   "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
 };
 
 string Response::GetDate() {
   time_t rawtime;
-  struct tm * t;
-
-  time (&rawtime);
-  unsigned len = 0;
-
-#ifdef _WIN32
-  struct tm _t;
-  if (gmtime_s(&_t, &rawtime)) {
-    goto GetDate_Error;
+  time(&rawtime);
+  struct tm t;
+  if (!gmtime_r(&rawtime, &t)) {
+    return "Date: Thu Jan 01 1970 00:00:00 GMT";
   }
-  t = &_t;
-#else
-  t = gmtime (&rawtime);
-  if (!t) {
-    goto GetDate_Error;
-  }
-#endif
 
   char buf[128];
-  len = snprintf(buf, ARRAY_LENGTH(buf),
+  unsigned len = snprintf(buf, ARRAY_LENGTH(buf),
     "Date: %s, %d %s %d %.2d:%.2d:%.2d GMT",
-    day[t->tm_wday], t->tm_mday, month[t->tm_mon],
-    1900 + t->tm_year, t->tm_hour, t->tm_min, t->tm_sec);
+    day[t.tm_wday], t.tm_mday, month[t.tm_mon],
+    1900 + t.tm_year, t.tm_hour, t.tm_min, t.tm_sec);
 
   return string(buf, len);
-
-GetDate_Error:
-  return "Date: Thu Jan 01 1970 00:00:00 GMT";
 }
