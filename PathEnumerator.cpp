@@ -37,7 +37,7 @@ class Win32PathEnumerator : public PathEnumerator {
 private:
   const string mPath;
   mutable HANDLE hFind;
-  mutable WIN32_FIND_DATA fad;
+  mutable WIN32_FIND_DATAA fad;
 
   static string initPath(const string& path) {
     string rv(path);
@@ -59,14 +59,14 @@ public:
   }
   virtual bool next(string& file) const {
     if (!hFind) {
-      if (!(hFind = FindFirstFile(mPath.c_str(), &fad))) {
+      if (!(hFind = FindFirstFileA(mPath.c_str(), &fad))) {
         return false;
       }
       file.assign(fad.cFileName);
       return true;
     }
 
-    if (FindNextFile(hFind, &fad)) {
+    if (FindNextFileA(hFind, &fad)) {
       file.assign(fad.cFileName);
       return true;
     }
