@@ -53,6 +53,8 @@ using std::auto_ptr;
 #define PORT 8080
 #endif
 
+#define DEFAULT_BUFLEN 512
+
 class Connection : public Runnable{
 public:
   Connection(Socket* s)

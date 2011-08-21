@@ -80,7 +80,6 @@ static int fopen_s(FILE** file, const char* path, const char* mode) {
 #endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define DEFAULT_BUFLEN 512
 
 
 static const char* gContentTypes[][2] = {
