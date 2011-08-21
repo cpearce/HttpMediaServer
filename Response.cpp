@@ -335,7 +335,7 @@ string Response::StatusCode(eMode mode) {
 
 string Response::ExtractContentType(const string& file, eMode mode) {
   if (mode == ERROR_FILE_NOT_EXIST || mode == INTERNAL_ERROR)
-    return "text/html; charset=utf-8s";
+    return "text/html; charset=utf-8";
   if (mode == DIR_LIST)
 #ifdef _WIN32
     return "text/html; charset=windows";
