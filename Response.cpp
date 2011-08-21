@@ -53,6 +53,8 @@ static int gmtime_r(const time_t *timep, struct tm *result) {
   return gmtime_s(result, timep) == 0;
 }
 
+#define DIR_LIST_CHARSET "text/html; charset=windows"
+
 #else
 #define __stat64 stat64
 #define _stat64 stat64
@@ -72,6 +74,8 @@ static int fopen_s(FILE** file, const char* path, const char* mode) {
   *file = f;
   return 0;
 }
+
+#define DIR_LIST_CHARSET "text/html; charset=utf-8"
 
 #endif
 
@@ -312,11 +316,7 @@ void Response::Test() {
   assert(ExtractContentType("dir1/dir2/file.webm", GET_ENTIRE_FILE) == string("video/webm"));
   assert(ExtractContentType("dir1/dir2/file.txt", GET_ENTIRE_FILE) == string("text/plain; charset=utf-8"));
   assert(ExtractContentType("dir1/dir2/file.html", GET_ENTIRE_FILE) == string("text/html; charset=utf-8"));
-#ifdef _WIN32
-  assert(ExtractContentType("", DIR_LIST) == string("text/html; charset=windows"));
-#else
-  assert(ExtractContentType("", DIR_LIST) == string("text/html; charset=utf-8"));
-#endif
+  assert(ExtractContentType("", DIR_LIST) == string(DIR_LIST_CHARSET));
 }
 #endif
 
@@ -337,11 +337,7 @@ string Response::ExtractContentType(const string& file, eMode mode) {
   if (mode == ERROR_FILE_NOT_EXIST || mode == INTERNAL_ERROR)
     return "text/html; charset=utf-8";
   if (mode == DIR_LIST)
-#ifdef _WIN32
-    return "text/html; charset=windows";
-#else
-    return "text/html; charset=utf-8";
-#endif
+    return DIR_LIST_CHARSET;
 
   size_t dot = file.rfind(".");
   if (dot == string::npos) {
