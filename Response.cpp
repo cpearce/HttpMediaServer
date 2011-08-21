@@ -64,6 +64,15 @@ void Sleep(int ms) {
   usleep(ms * 1000);
 }
 
+static int fopen_s(FILE** file, const char* path, const char* mode) {
+  FILE *f = fopen(path, mode);
+  if (!f) {
+    return 1;
+  }
+  *file = f;
+  return 0;
+}
+
 #endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -198,17 +207,10 @@ bool Response::SendBody(Socket *aSocket) {
 
   if (mode == GET_ENTIRE_FILE) {
     if (!file) {
-#ifdef _WIN32
       if (fopen_s(&file, path.c_str(), "rb")) {
         file = 0;
         return false;
       }
-#else
-      file = fopen(path.c_str(), "rb");
-      if (!file) {
-        return false;
-      }
-#endif
     }
     if (feof(file)) {
       // Transmitted entire file!
@@ -237,17 +239,10 @@ bool Response::SendBody(Socket *aSocket) {
 
   } else if (mode == GET_FILE_RANGE) {
     if (!file) {
-#ifdef _WIN32
       if (fopen_s(&file, path.c_str(), "rb")) {
         file = 0;
         return false;
       }
-#else
-      file = fopen(path.c_str(), "rb");
-      if (!file) {
-        return false;
-      }
-#endif
       fseek64(file, rangeStart, SEEK_SET);
       offset = rangeStart;
       bytesRemaining = rangeEnd - rangeStart;
