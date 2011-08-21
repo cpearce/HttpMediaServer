@@ -45,10 +45,14 @@ typedef unsigned __int64 uint64_t;
 #include <string>
 #include <map>
 #include <vector>
+#include <iostream>
 
 using std::map;
 using std::string;
 using std::vector;
+using std::cout;
+using std::cerr;
+using std::endl;
 
 string ToString(int64_t i);
 string ToString(int i);

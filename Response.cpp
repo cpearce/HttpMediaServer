@@ -121,7 +121,7 @@ Response::Response(RequestParser p)
     int result;
     result = _stat64(target.c_str(), &buf );
     if (result == -1) {
-      std::cerr << "File not found" << std::endl;
+      cerr << "File not found" << std::endl;
       mode = ERROR_FILE_NOT_EXIST;
     } else if (result != 0) {
       mode = INTERNAL_ERROR;
@@ -180,7 +180,7 @@ bool Response::SendHeaders(Socket* aSocket) {
   headers.append(ExtractContentType(path, mode));
   headers.append("\r\n\r\n");
 
-  std::cout << "Sending Headers " << parser.id << std::endl << headers;
+  cout << "Sending Headers " << parser.id << std::endl << headers;
 
   return aSocket->Send(headers.c_str(), (int)headers.size()) != -1;
 }
@@ -188,7 +188,7 @@ bool Response::SendHeaders(Socket* aSocket) {
 // Returns true if we need to call again.
 bool Response::SendBody(Socket *aSocket) {
   if (mode == ERROR_FILE_NOT_EXIST) {
-    std::cout << "Sent (empty) body (" << parser.id << ")" << std::endl;
+    cout << "Sent (empty) body (" << parser.id << ")" << std::endl;
     return false;
   }
 

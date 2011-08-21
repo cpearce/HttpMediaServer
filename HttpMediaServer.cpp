@@ -75,7 +75,7 @@ public:
       if (r > 0) {
         parser.Add(recvbuf, r);
       } else if (r == 0) {
-        std::cout << "Connection closing..." << std::endl;
+        cout << "Connection closing..." << std::endl;
         break;
       } else {
         mClientSocket->Close();
@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  std::cout << "Now listening on port: " << PORT << std::endl;
+  cout << "Now listening on port: " << PORT << std::endl;
 
   vector<Connection*> Connections;
   while (gRunning) {

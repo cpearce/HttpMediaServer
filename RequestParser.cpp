@@ -68,7 +68,7 @@ void RequestParser::Add(const char* buf, unsigned len) {
     Parse(l);
     start = end + 2;
   }
-  std::cout << "Request " << id << std::endl << buf;
+  cout << "Request " << id << std::endl << buf;
 }
 
 #ifdef _DEBUG
