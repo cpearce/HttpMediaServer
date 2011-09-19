@@ -68,6 +68,15 @@ public:
     return ContainsKey(GetParams(), "live");
   }
 
+  bool HasSpecifiedMimeType() const {
+    return ContainsKey(GetParams(), "mime");
+  }
+
+  string GetSpecifiedMimeType() const {
+    assert(HasSpecifiedMimeType());
+    return GetParams().find("mime")->second;
+  }
+
   const int id;
 
 #ifdef _DEBUG

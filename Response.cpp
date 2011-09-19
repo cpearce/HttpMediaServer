@@ -176,7 +176,11 @@ bool Response::SendHeaders(Socket* aSocket) {
   //headers.append("Last-Modified: Wed, 10 Nov 2009 04:58:08 GMT\r\n");
 
   headers.append("Content-Type: ");
-  headers.append(ExtractContentType(path, mode));
+  if (parser.HasSpecifiedMimeType()) {
+    headers.append(parser.GetSpecifiedMimeType());
+  } else {
+    headers.append(ExtractContentType(path, mode));
+  }
   headers.append("\r\n\r\n");
 
   cout << "Sending Headers " << parser.id << std::endl << headers;
