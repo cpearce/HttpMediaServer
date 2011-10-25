@@ -18,6 +18,10 @@ http://localhost:80/video.webm?rate=200 serves video.webm at 200KB/s
 To simulate a live stream, append a query parameter "live" to the URL, e.g.:
 http://localhost:80/video.webm?live
 
+To simulate the round trip delay, append a query parameter "delay=N" to
+the URL, where N is the delay in milliseconds, e.g.:
+http://localhost:80/video.webm?delay=200 will wait 200 ms before sending.
+
 Live streams are served without HTTP1.1 byte ranges being supported, and
 without a Content-Length HTTP header.
 

@@ -153,6 +153,15 @@ bool Response::SendHeaders(Socket* aSocket) {
   headers.append("\r\n");
   headers.append("Server: HttpMediaServer/0.1\r\n");
     
+  if (ContainsKey(parser.GetParams(), "delay")) {
+    const map<string,string> params = parser.GetParams();
+    string delayStr = params.find("delay")->second;
+    double delay = atof(delayStr.c_str());
+    if (delay > 0.0) {
+      Sleep((unsigned)(delay+0.5));
+    }
+  }
+
   if (!parser.IsLive()) {
     if (mode == GET_ENTIRE_FILE) {
       headers.append("Accept-Ranges: bytes\r\n");
