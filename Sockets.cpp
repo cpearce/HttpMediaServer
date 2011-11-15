@@ -169,6 +169,11 @@ int Socket::Shutdown() {
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/select.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+
+#define SOCKET_ERROR -1
 
 class UnixSocket : public Socket {
 public:
@@ -273,4 +278,20 @@ bool Socket::WaitForRead(unsigned timeout) {
   to.tv_usec = timeout;
   
   return select(mSocket + 1, &socks, 0, 0, &to) > 0;
+}
+
+string Socket::GetIP() const {
+  char buf[1024];
+  if (gethostname(buf, sizeof(buf)) == SOCKET_ERROR) {
+    return "Unknown";
+  }
+
+  struct hostent *host = gethostbyname(buf);
+  if(host == NULL) {
+    return "Unknown";
+  }
+
+  char* localIP;
+  localIP = inet_ntoa(*(struct in_addr *)*host->h_addr_list);
+  return string(localIP);
 }

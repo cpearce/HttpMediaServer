@@ -32,6 +32,10 @@
 #ifndef __SOCKETS_H__
 #define __SOCKETS_H__
 
+#include <string>
+
+using std::string;
+
 // Wraps platform-specific socket API.
 class Socket {
 protected:
@@ -68,6 +72,9 @@ public:
   // Reads data from an open socket. Returns number of bytes read, or 0 if
   // connection is closing. <0 on error. Blocking.
   virtual int Receive(char* aBuf, int aSize) = 0;
+
+  // Returns a string representation of the local IP address.
+  string GetIP() const;
 
 protected:
   Socket() {}

@@ -134,6 +134,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  cout << "Local IP: " << listener->GetIP().c_str() << std::endl;
   cout << "Now listening on port: " << PORT << std::endl;
 
   vector<Connection*> Connections;
